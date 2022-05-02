@@ -5,7 +5,7 @@
         <v-card-title class="two-column">
           <span>List of rules</span>
           <span>
-            <v-btn icon>
+            <v-btn icon @click="onClickApi" :loading="apiLoading">
               <v-icon>mdi-magnify</v-icon>
             </v-btn>
             <AddNewRule
@@ -167,12 +167,14 @@
 </template>
 
 <script>
+import api from '../common/api'
 import AddNewRule from '../components/AddNewRule.vue'
 
 export default {
   components: { AddNewRule },
   data() {
     return {
+      apiLoading: false,
       rules: [
         {
           id: 1,
@@ -216,6 +218,19 @@ export default {
     },
     togleOpened(rule) {
       rule.opened = !rule.opened
+    },
+    async onClickApi() {
+      const isError = !window.isError
+      try {
+        this.apiLoading = true;
+        const data = await api.test[isError ? 'error' : 'demo']();
+        console.log(' - apiData:227 >', window.isError, data); // eslint-disable-line no-console
+      } catch (e) {
+        //
+      } finally {
+        window.isError = isError
+        this.apiLoading = false;
+      }
     },
   },
 }

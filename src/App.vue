@@ -95,6 +95,8 @@
           <!-- If using vue-router -->
           <router-view></router-view>
         </v-container>
+
+        <Notification />
       </v-main>
 
       <v-footer app>
@@ -105,10 +107,12 @@
 </template>
 
 <script>
+import Notification from './components/Notification'
 
 export default {
   name: 'App',
   components: {
+    Notification,
   },
   data() {
     return {

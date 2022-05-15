@@ -1,7 +1,7 @@
 <template>
   <v-row>
     <v-col cols="4">
-      <v-card class="column-1">
+      <v-card class="column-1" :loading="loading">
         <v-card-title class="two-column">
           <span>List of rules</span>
           <span>
@@ -25,7 +25,7 @@
               <v-badge
                 dot
                 data-inline
-                :color="rule.disabled ? 'grey' : 'success'"
+                :color="rule.active ? 'success' : 'grey'"
                 offset-y="15"
                 offset-x="15"
               ></v-badge>
@@ -71,7 +71,6 @@
               <v-col cols="6" class="text-right">
                 <span class="right-column">
                   Running: <strong class="color-primary">1</strong>
-                  For: <strong>Neurala</strong>
                 </span>
               </v-col>
             </v-row>
@@ -93,13 +92,13 @@
                   <v-btn
                     small
                     plain
-                    :color="rule.opened ? 'primary' : ''"
+                    :color="openedRules[rule.id] ? 'primary' : ''"
                     @click="togleOpened(rule)"
                   >
                     <v-icon small style="margin-top: -1px; margin-right: 3px;">
-                      {{ `mdi-text-box${rule.opened ? '-outline' : '' }` }}
+                      {{ `mdi-text-box${openedRules[rule.id] ? '-outline' : '' }` }}
                     </v-icon>
-                    {{ rule.opened ? 'Hide' : 'Show' }}
+                    {{ openedRules[rule.id] ? 'Hide' : 'Show' }}
                     details
                   </v-btn>
                   <v-btn
@@ -113,44 +112,38 @@
                 </v-list-item-icon>
               </v-list-item-title>
               <v-list-item-subtitle
-                v-if="rule.opened"
+                v-if="openedRules[rule.id]"
               >
                 <v-alert
                   class="alert-bg"
-                  v-for="detail of rule.details"
-                  :key="detail.id"
+                  v-for="detail of rule.configuration"
+                  :key="detail.key"
                 >
-                  <!-- {{ detail.someInfo }} -->
                   <v-row>
-                    <v-col cols="3">
+                    <v-col cols="4">
                       <v-icon>mdi-magnify</v-icon>
                       looking for:
                     </v-col>
-                    <v-col cols="3">
+                    <v-col cols="4">
                       <v-text-field
                         data-solo
                         filled
+                        disabled
+                        :value="detail.key"
                         class="text-field"
                         label="Key"
                         placeholder="Put key for search"
                       >
                       </v-text-field>
                     </v-col>
-                    <v-col cols="3">
+                    <v-col cols="4">
                       <v-text-field
                         filled
+                        disabled
+                        :value="detail.value"
                         class="text-field"
                         label="Value"
                         placeholder="Put value for search"
-                      >
-                      </v-text-field>
-                    </v-col>
-                    <v-col cols="3">
-                      <v-text-field
-                        filled
-                        class="text-field"
-                        label="Include in array"
-                        placeholder="prediction"
                       >
                       </v-text-field>
                     </v-col>
@@ -169,37 +162,44 @@
 <script>
 import AddNewRule from '../components/AddNewRule.vue'
 
+import api from '../common/api'
+
+window.api = api;
+
 export default {
   components: { AddNewRule },
   data() {
     return {
+      loading: false,
+      openedRules: {},
       rules: [
-        {
-          id: 1,
-          name: 'Rule name 1',
-          disabled: false,
-          active: true,
-          opened: false,
-          details: [{
-            someInfo: 'Details Info 1',
-            date: (new Date()).toUTCString(),
-          }],
-        }, {
-          id: 2,
-          name: 'Rule name 2',
-          disabled: true,
-          active: false,
-          opened: false,
-          details: [{
-            someInfo: 'Details Info 2',
-            date: (new Date()).toUTCString(),
-          }],
-        },
+        // {
+        //   id: 1,
+        //   name: 'Rule name 1',
+        //   disabled: false,
+        //   active: true,
+        //   opened: false,
+        //   details: [{
+        //     someInfo: 'Details Info 1',
+        //     date: (new Date()).toUTCString(),
+        //   }],
+        // }, {
+        //   id: 2,
+        //   name: 'Rule name 2',
+        //   disabled: true,
+        //   active: false,
+        //   opened: false,
+        //   details: [{
+        //     someInfo: 'Details Info 2',
+        //     date: (new Date()).toUTCString(),
+        //   }],
+        // },
       ],
     };
   },
   created() {
     window.that = this;
+    this.loadRules()
   },
   computed: {
     activeRules() {
@@ -212,10 +212,22 @@ export default {
     },
     changeActive(rule) {
       rule.active = !rule.active
-      rule.disabled = !rule.disabled
+      // rule.disabled = !rule.disabled
     },
     togleOpened(rule) {
-      rule.opened = !rule.opened
+      // rule.opened = !rule.opened
+      this.openedRules = {
+        ...this.openedRules,
+        [rule.id]: !this.openedRules[rule.id],
+      }
+    },
+    async loadRules() {
+      this.loading = true
+      try {
+        this.rules = await api.rules.get()
+      } finally {
+        this.loading = false
+      }
     },
   },
 }

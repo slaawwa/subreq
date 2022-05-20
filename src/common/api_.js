@@ -3,51 +3,72 @@ import Vue from 'vue'
 
 const base = `/api/`;
 
-function url(urlPath, data='') {
-  const isForm = typeof data === 'object' && data.file;
+class ApiError extends Error {
+  constructor(code, msg = '<EMPTY_MESSAGE>') {
+    super()
+    this.name = `Api Error #${code}`
+    this.code = code
+    this.message = msg
+  }
+}
+
+function url(urlPath = '', body = null, method = 'POST') {
   const headers = {
+    Accept: 'application/json',
     'x-requested-with': 'XMLHttpRequest',
   };
+  const isForm = typeof data === 'object' && body.file;
   let form;
   if (isForm) {
     form = new FormData();
-    form.append('file', data.file);
-    delete data.file;
-    form.append('__json__', JSON.stringify(data));
+    form.append('file', body.file);
+    delete body.file;
+    form.append('__json__', JSON.stringify(body));
   } else {
     headers['Content-Type'] = 'application/json';
-    headers.Accept = 'application/json';
   }
   console.log(' - api::', isForm)
-  console.log(' - api:isForm:data:', isForm, data)
+  console.log(' - api:isForm:data:', isForm, body)
 
   return fetch(`${base}${urlPath}`, {
     headers,
-    method: 'POST',
+    method,
     credentials: 'same-origin',
-    body: isForm ? form : JSON.stringify(data),
+    body: isForm ? form : JSON.stringify(body),
+    ...(body && { body: isForm ? form : JSON.stringify(body) })
   })
-    .then(r => r.json())
-    .then(res => {
-      if (res.status !== 'done') {
-        console.error(`throw Error! ${res?.message}`);
-        return Promise.reject(res?.message);
+    // .then(r => r.json())
+    // .then(res => {
+    //   if (res.status !== 'done') {
+    //     console.error(`throw Error! ${res?.message}`);
+    //     return Promise.reject(res?.message);
+    //   }
+    //   return res?.data;
+    // })
+    .then(async (response) => {
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new ApiError(errorData.status, errorData.message);
       }
-      return res?.data;
+      return response.json()
     })
     .catch((err) => {
-      // noti
-      // throw new Error(`API: ${Vue.prototype.$app.notiMess}`);
+      const [title, ...msgParts] = `${err?.toString()}`.split(': ')
       Vue.prototype.$noti({
         snackbar: true,
-        text: `${err?.toString()}`,
+        title,
+        text: msgParts.join(': '),
       })
-      throw new Error(`API: ${err?.toString()}`);
-      // return Promise.reject(res.mess);
+      throw err;
     });
 }
 
 export default {
+  topics: {
+    get: () => url('topics', '', 'GET').then(({ topics }) => topics),
+    create: body => url('topics', body, 'POST'),
+    delete: id => url(`topic/${id}`, null, 'DELETE'),
+  },
   login: data => url('login', data),
   status: () => url('status'),
   logout: () => url('logout'),

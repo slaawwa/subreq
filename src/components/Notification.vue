@@ -13,8 +13,8 @@
       :key="index + Math.random()"
       :style="{ bottom: `${(index * 75) + 8}px` }"
     >
-      <h3>Error</h3>
-      <strong>API:</strong> {{ m.text }}.
+      <h3 v-if="m.title">{{ m.title }}</h3>
+      {{ m.text }}
 
       <template v-slot:action="{ attrs }">
         <v-btn

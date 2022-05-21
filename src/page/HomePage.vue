@@ -1,6 +1,6 @@
 <template>
   <div>
-    <v-card>
+    <v-card :loading="loading">
       <v-card-text>
         <v-row
           gutters
@@ -25,7 +25,7 @@
                 :key="item.id"
                 :value="item.id"
               >
-                {{ item.text }}
+                {{ item.name }}
                 <v-btn
                   x-small
                   icon
@@ -105,24 +105,6 @@
 
           </v-col>
           <v-col style="text-align: right">
-
-            <v-btn
-              text
-              small
-              style="margin-right: 5px"
-              color="primary"
-              :disabled="!activeTab"
-            >
-              Unsubscribe
-            </v-btn>
-            <v-btn
-              small
-              color="primary"
-              :disabled="!activeTab"
-            >
-              Subscribe
-            </v-btn>
-
             <v-btn
               icon
               style="position: absolute; right: -40px; top: -5px"
@@ -139,14 +121,14 @@
 
 
     <v-spacer style="margin-top: 10px; margin-bottom: 10px"></v-spacer>
-    <v-card>
+    <v-card :loading="loadingLogs">
       <v-card-title style="justify-content: space-between">
         Json logs
         <v-btn
           x-small
           text
           color="primary"
-          :disabled="!activeTab || filteredItems.length === 0"
+          :disabled="!activeTab || (filteredItems && filteredItems.length === 0)"
           @click="clearHistory"
         >
           <v-icon small>mdi-history</v-icon>
@@ -163,7 +145,7 @@
             <v-list-item
               v-for="(item, index) in filteredItems"
               :key="item.id"
-              :style="index >= filteredItems.length - 1 ? '' : 'border-bottom: 1px solid lightgray;'"
+              :style="index >= (filteredItems ? filteredItems.length : 0) - 1 ? '' : 'border-bottom: 1px solid lightgray;'"
               @click="setOpen(item)"
             >
               <v-list-item-icon>
@@ -223,7 +205,7 @@
           text
           type="info"
           :icon="false"
-          v-if="activeTab && filteredItems.length === 0"
+          v-if="activeTab && filteredItems && filteredItems.length === 0"
         >
           <strong>Detected: </strong>
           <span>Empty</span>
@@ -261,6 +243,7 @@
 
 <script>
 
+import api from '@/common/api';
 import Editor from '../components/Editor.vue';
 
 const DAY_IN_SECONDS = 1000 * 60 * 60 * 24;
@@ -308,13 +291,20 @@ export default {
       { id: 3, text: '-', disabled: true, date: getDate(+3), data: { url: data.url, backbone: data.backbone } },
     ]
     const validKeys = ['url', 'byteCount', 'dateTrained', 'dateReleased', 'backboneIdentifier', 'backends'];
+    if (!window) {
+      window.items = items;
+      window.validKeys = validKeys;
+    }
     return {
       newTab: '',
       showNewModal: false,
       activeKey: 1,
       openedItem: null,
+      loading: true,
+      loadingLogs: false,
+      logs: [],
       tabs: [
-        { text: 'Neurala', id: 1, items, validKeys },
+        // { text: 'Neurala', id: 1, items, validKeys },
       ],
     }
   },
@@ -329,13 +319,25 @@ export default {
       if (this.openedItem) {
         return [this.openedItem];
       }
-      return this.activeTab.items;
+      return this.logs;
     },
   },
   watch: {
-    activeKey() {
+    activeKey(key) {
+      if (key) {
+        this.getLogs(key)
+      }
       this.openedItem = null;
     },
+  },
+  async created() {
+    window.th = this
+    this.loading = true;
+    try {
+      this.tabs = await api.topics.get()
+    } finally {
+      this.loading = false
+    }
   },
   methods: {
     closeTag(item) {
@@ -345,18 +347,18 @@ export default {
       this.showNewModal = false
     },
     addNew() {
-      const itemRec = {
-        id: 12,
-        text: 'Rule 2, Rule 3',
-        disabled: false,
-        date: 'Sun, 24 Apr 2022 21:54:34 GMT',
-        data: { name: 'Turbo', url: '/img' },
-      };
+      // const itemRec = {
+      //   id: 12,
+      //   text: 'Rule 2, Rule 3',
+      //   disabled: false,
+      //   date: 'Sun, 24 Apr 2022 21:54:34 GMT',
+      //   data: { name: 'Turbo', url: '/img' },
+      // };
       const newTab = {
-        text: this.newTab,
+        name: this.newTab,
         id: Date.now(),
-        items: [itemRec],
-        validKeys: ['url', 'name'],
+        // items: [itemRec],
+        // validKeys: ['url', 'name'],
       };
       this.tabs = [newTab, ...this.tabs];
       this.activeKey = newTab.id;
@@ -366,10 +368,18 @@ export default {
     },
     clearHistory() {
       this.openedItem = null;
-      this.activeTab.items = [];
+      this.logs = [];
     },
     setOpen(item) {
       this.openedItem = item === this.openedItem ? null : item;
+    },
+    async getLogs(topicId) {
+      this.loadingLogs = true
+      try {
+        this.logs = await api.logs.get(topicId)
+      } finally {
+        this.loadingLogs = false
+      }
     },
     toString(obj) {
       try {
